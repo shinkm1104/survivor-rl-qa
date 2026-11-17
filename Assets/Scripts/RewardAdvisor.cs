@@ -1,7 +1,30 @@
 using UnityEngine;
 
 namespace SurvivorLab {
-    // Explicit rule-based reward decisions, separate from movement Q-learning.
+    public interface IRewardChooser {
+        string Name { get; }
+        int Select(Simulation s);
+        string Reason(Simulation s, int index);
+    }
+    public sealed class RuleRewardChooser : IRewardChooser {
+        public static readonly RuleRewardChooser Instance = new RuleRewardChooser();
+        public string Name { get { return "규칙 기반"; } }
+        public int Select(Simulation s) { return RewardAdvisor.Select(s); }
+        public string Reason(Simulation s, int index) { return "규칙: " + RewardAdvisor.Reason(s, s.offers[index]); }
+    }
+    // Fixed baseline used by QA to check that Simulation honours an injected chooser.
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    public sealed class FixedRewardChooser : IRewardChooser {
+        readonly System.Random random; readonly bool first;
+        public FixedRewardChooser(bool alwaysFirst, int seed) { first = alwaysFirst; random = new System.Random(seed); }
+        public string Name { get { return first ? "첫 후보" : "무작위"; } }
+        public int Select(Simulation s) { return s.offers.Count == 0 ? -1 : first ? 0 : random.Next(s.offers.Count); }
+        public string Reason(Simulation s, int index) { return Name; }
+    }
+
+#endif
+
+    // Explicit rule-based reward decisions for the auto-pick toggle.
     public static class RewardAdvisor {
         public static int Select(Simulation s) {
             int best=-1; float bestScore=float.NegativeInfinity;

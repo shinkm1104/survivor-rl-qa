@@ -5,6 +5,7 @@ using UnityEngine;
 namespace SurvivorLab {
     public static class QualityChecks {
         static int count;
+        static readonly Vector2[] Directions = { Vector2.zero, Vector2.up, new Vector2(1,1).normalized, Vector2.right, new Vector2(1,-1).normalized, Vector2.down, new Vector2(-1,-1).normalized, Vector2.left, new Vector2(-1,1).normalized };
         static void Check(bool condition,string label) { if(!condition) throw new Exception("QA FAILED: "+label); count++; Console.WriteLine("QA PASS: "+label); }
         static bool Near(float a,float b) { return Mathf.Abs(a-b)<0.002f; }
         public static void Run(Balance b) {
@@ -40,9 +41,8 @@ namespace SurvivorLab {
             s=new Simulation(b,0,20); s.GrantScroll("frost_mark"); e=new Enemy{id=1,hp=1000}; s.Hit(e); float until=e.slowUntil; s.time=0.5f; s.Hit(e);
             Check(e.slowUntil>until && Near(e.slowUntil,2),"frost refreshes duration");
             var a=new Simulation(b,1,101); var c=new Simulation(b,1,101);
-            for(int i=0;i<1200;i++) { Vector2 input=Learning.Actions[(i/10)%9]; a.Step(input,0.05f,true); c.Step(input,0.05f,true); }
+            for(int i=0;i<1200;i++) { Vector2 input=Directions[(i/10)%9]; a.Step(input,0.05f,true); c.Step(input,0.05f,true); }
             Check(a.kills==c.kills && a.hp==c.hp && a.player==c.player,"seeded simulation deterministic");
-            var agent=new Learning(); agent.UpdateQ(1,2,10,2,true); Check(agent.Act(1,0)==2,"learning changes greedy action");
             for(int cls=0;cls<4;cls++) {
                 s=new Simulation(b,cls,200+cls);
                 s.drops.Add(new Drop{pos=Vector2.zero,xp=b.RequiredXp(1)+0.01f});
@@ -113,22 +113,6 @@ namespace SurvivorLab {
             s=new Simulation(b,1,600){rewardChooser=new FixedRewardChooser(true,1)};
             s.offers.Add(new Reward{id="speed",value=4}); s.offers.Add(new Reward{id="damage",value=35}); s.offers.Add(new Reward{id="hp",value=10});
             s.ChooseAutomatically(); Check(s.speedBonus==4 && s.damageBonus==0,"simulation uses injected reward chooser");
-            var learner=new RewardLearner(b,"reinforce",7);
-            Check(learner.data.cards.Length==6+19+5 && learner.data.weights.Length==learner.FeatureSize,"reward learner catalog covers upgrades, scrolls and elements");
-            s=new Simulation(b,1,601){rewardChooser=learner};
-            s.offers.Add(new Reward{id="speed",value=4}); s.offers.Add(new Reward{id="damage",value=35}); s.offers.Add(new Reward{id="Lightning",infusion=true});
-            Check(learner.Select(s)>=0 && learner.Select(s)<3,"untrained reward learner returns a valid card");
-            learner.explore=true; int picked=learner.Select(s), other=picked==0?1:0; learner.explore=false;
-            float before=learner.Scores(s)[picked]-learner.Scores(s)[other];
-            s.time+=30; learner.EndEpisode(s); s.time-=30;
-            float after=learner.Scores(s)[picked]-learner.Scores(s)[other];
-            Check(after>before && learner.data.episodes==1,"REINFORCE raises preference for a card followed by positive return");
-            var q=new RewardLearner(b,"linear-q",8){explore=true,epsilon=0};
-            int qa=q.Select(s); float q0=q.Scores(s)[qa]; s.time+=30; q.EndEpisode(s); s.time-=30;
-            Check(q.Scores(s)[qa]>q0 && q.Scores(s)[qa]<=1+0.0001f,"linear Q moves chosen card value toward observed return");
-            q.explore=false; Check(q.Select(s)==qa && q.Select(s)==qa,"greedy learned choice is deterministic");
-            bool rejected=false; try { new RewardLearner(new RewardPolicyFile{cards=learner.data.cards,weights=new float[3],baseline=new float[RewardLearner.BaselineSize]},1); } catch(Exception) { rejected=true; }
-            Check(rejected,"reward policy with wrong feature size is rejected");
             if(b.HasWaves) {
                 s=new Simulation(b,2,700);
                 for(int i=0;i<100;i++) s.Step(Vector2.zero,0.05f,true);

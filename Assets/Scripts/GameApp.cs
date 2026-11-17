@@ -11,8 +11,8 @@ namespace SurvivorLab {
         public string image; public string[] legend, rows; public BackgroundDecoration[] decorations;
     }
     public sealed class GameApp : MonoBehaviour {
-        Balance balance; Simulation sim; Learning agent; Trainer trainer;
-        bool menu=true, ai, paused, autoRewards; int selected, speed=1, action; float accumulator, actionAt;
+        Balance balance; Simulation sim;
+        bool menu=true, paused, autoRewards; int selected, speed=1; float accumulator;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         bool smoke;
         float smokeStart, smokeCaptureAt=4, smokeQuitAt=6; int smokePhase;
@@ -26,21 +26,11 @@ namespace SurvivorLab {
         readonly HashSet<string> used=new HashSet<string>(); Font font; string status="";
         readonly Dictionary<string,Texture2D> art=new Dictionary<string,Texture2D>();
         static readonly string[] MonsterKinds={"slime","bat","ghost"};
-        RewardLearner learnedRewards; bool useLearnedRewards, faceLeft; BackgroundMap map;
-        IRewardChooser Chooser { get { return useLearnedRewards && learnedRewards!=null ? (IRewardChooser)learnedRewards : RuleRewardChooser.Instance; } }
-        string PolicyPath { get { return Path.Combine(Application.persistentDataPath,"policy-v2.json"); } }
+        bool faceLeft; BackgroundMap map;
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot() { if(FindFirstObjectByType<GameApp>()==null) new GameObject("Survivor Lab").AddComponent<GameApp>(); }
         void Start() {
-            Application.targetFrameRate=60; balance=Balance.Load(); agent=new Learning();
-            if(File.Exists(PolicyPath)) agent.Load(PolicyPath);
-            else agent.Load(Path.Combine(Application.streamingAssetsPath,"initial-policy-v2.json"));
-            Debug.Log("Policy loaded: episodes="+agent.data.episodes+", states="+agent.data.rows.Count);
-            string rewardPolicy=Path.Combine(Application.streamingAssetsPath,"reward-policy.json");
-            try {
-                if(File.Exists(rewardPolicy)) { learnedRewards=new RewardLearner(JsonUtility.FromJson<RewardPolicyFile>(File.ReadAllText(rewardPolicy)),1); useLearnedRewards=true; }
-                Debug.Log(learnedRewards==null?"Reward policy missing: rule-based reward choice":"Reward policy loaded: method="+learnedRewards.data.method+", episodes="+learnedRewards.data.episodes);
-            } catch(Exception e) { learnedRewards=null; Debug.LogWarning("Reward policy rejected, using rules: "+e.Message); }
+            Application.targetFrameRate=60; balance=Balance.Load();
             LoadArt();
             cam=Camera.main;
             if(cam==null) cam=new GameObject("Camera").AddComponent<Camera>();
@@ -66,7 +56,7 @@ namespace SurvivorLab {
             }
             if(Array.IndexOf(args,"--smoke-growth")>=0) {
                 smoke=true; smokeStart=Time.realtimeSinceStartup; smokeCaptureAt=14; smokeQuitAt=16;
-                speed=4; autoRewards=true; Begin(true);
+                speed=4; Begin(true);
             }
             if(Array.IndexOf(args,"--smoke-ai-rewards")>=0) {
                 smoke=true; verifyAutoRewards=true; smokeStart=Time.realtimeSinceStartup;
@@ -87,8 +77,8 @@ namespace SurvivorLab {
             }
 #endif
         }
-        void SetControl(bool watch) { ai=watch; autoRewards=watch; rewardChoiceAt=-1; }
-        void Begin(bool watch) { SetControl(watch); sim=new Simulation(balance,selected,90210){rewardChooser=Chooser}; menu=false; paused=false; accumulator=actionAt=0; }
+        // autoPick: rewards are chosen by the rule-based RewardAdvisor (used by smoke tests and the in-game toggle).
+        void Begin(bool autoPick) { autoRewards=autoPick; rewardChoiceAt=-1; sim=new Simulation(balance,selected,90210); menu=false; paused=false; accumulator=0; }
         void LoadArt() {
             string root=Path.Combine(Application.streamingAssetsPath,"Art");
             var files=new List<string>{"background/arena","items/xp","items/potion","items/rock","items/bolt","items/shadow"};
@@ -118,28 +108,23 @@ namespace SurvivorLab {
             }
             if(smoke && Time.realtimeSinceStartup-smokeStart>smokeCaptureAt && smokePhase==0) {
                 if(verifyAutoRewards && (sim.infusions.Count!=2 || sim.automaticChoices!=15 || sim.offers.Count!=0)) {
-                    Debug.LogError("AI reward integration check failed"); Application.Quit(1); return;
+                    Debug.LogError("Auto reward integration check failed"); Application.Quit(1); return;
                 }
-                if(verifyAutoRewards) Debug.Log("AI REWARD INTEGRATION PASS: 15 automatic decisions, two infusions, no pending offer");
+                if(verifyAutoRewards) Debug.Log("AUTO REWARD INTEGRATION PASS: 15 automatic decisions, two infusions, no pending offer");
                 if(sim!=null) Debug.Log($"SMOKE PROGRESSION time={sim.time:F2} level={sim.level} collectedOrbs={sim.collectedOrbs} totalXp={sim.totalXp:F2} infusions={sim.infusions.Count}");
                 ScreenCapture.CaptureScreenshot(Path.Combine(Application.persistentDataPath,"smoke.png")); smokePhase=1;
             }
             if(smoke && Time.realtimeSinceStartup-smokeStart>smokeQuitAt) Application.Quit(0);
 #endif
-            if(Input.GetKeyDown(KeyCode.Escape)) { menu=true; trainer?.Stop(); }
+            if(Input.GetKeyDown(KeyCode.Escape)) menu=true;
             if(Input.GetKeyDown(KeyCode.Space)) paused=!paused;
-            if(trainer!=null && trainer.active) {
-                trainer.Pump(300);
-                if(!trainer.active) { agent.Save(PolicyPath); status="Training saved. Watch AI to inspect the policy."; }
-                return;
-            }
             if(menu || sim==null || paused || sim.Done) return;
             if(sim.offers.Count>0) {
-                if(ai && autoRewards) {
+                if(autoRewards) {
                     if(rewardChoiceAt<0) rewardChoiceAt=Time.realtimeSinceStartup+0.65f;
                     if(Time.realtimeSinceStartup>=rewardChoiceAt) {
                         sim.ChooseAutomatically(); rewardChoiceAt=-1;
-                        Debug.Log("AI REWARD: "+sim.lastAutoChoice);
+                        Debug.Log("AUTO REWARD: "+sim.lastAutoChoice);
                     }
                 }
                 else for(int i=0;i<sim.offers.Count;i++) if(Input.GetKeyDown(KeyCode.Alpha1+i)) { sim.Choose(i); break; }
@@ -149,11 +134,7 @@ namespace SurvivorLab {
             accumulator+=Mathf.Min(Time.unscaledDeltaTime,0.1f)*speed;
             while(accumulator>=0.05f) {
                 accumulator-=0.05f;
-                Vector2 input;
-                if(ai) {
-                    if(sim.time>=actionAt) { action=agent.Act(Learning.Observe(sim),0); actionAt=sim.time+0.1f; }
-                    input=Learning.Actions[action];
-                } else input=new Vector2((Input.GetKey(KeyCode.D)||Input.GetKey(KeyCode.RightArrow)?1:0)-(Input.GetKey(KeyCode.A)||Input.GetKey(KeyCode.LeftArrow)?1:0),(Input.GetKey(KeyCode.W)||Input.GetKey(KeyCode.UpArrow)?1:0)-(Input.GetKey(KeyCode.S)||Input.GetKey(KeyCode.DownArrow)?1:0));
+                Vector2 input=new Vector2((Input.GetKey(KeyCode.D)||Input.GetKey(KeyCode.RightArrow)?1:0)-(Input.GetKey(KeyCode.A)||Input.GetKey(KeyCode.LeftArrow)?1:0),(Input.GetKey(KeyCode.W)||Input.GetKey(KeyCode.UpArrow)?1:0)-(Input.GetKey(KeyCode.S)||Input.GetKey(KeyCode.DownArrow)?1:0));
                 sim.Step(input,0.05f,false);
                 if(sim.Done || sim.offers.Count>0) { accumulator=0; break; }
             }
@@ -268,20 +249,11 @@ namespace SurvivorLab {
                 for(int i=0;i<4;i++) { GUI.backgroundColor=selected==i?new Color(0.2f,0.9f,0.8f):Color.white; if(GUI.Button(new Rect(65+i*295,210,280,90),balance.spells[i].name)) selected=i; }
                 GUI.backgroundColor=Color.white;
                 if(GUI.Button(new Rect(65,335,350,65),"PLAY / 직접 플레이")) Begin(false);
-                if(GUI.Button(new Rect(445,335,350,65),"WATCH AI / AI 관전")) Begin(true);
-                if(GUI.Button(new Rect(825,335,350,65),"TRAIN +400 episodes")) { trainer=new Trainer(balance,agent,400,Chooser); status=""; }
-                GUI.Label(new Rect(65,430,1150,110),"이동: 표 기반 Q-learning v2 | 학습 횟수: "+agent.data.episodes+" | 두루마리 19종\n파란 경험치를 모아 레벨업 → 3개 중 선택 → 7·14레벨에 속성 부여\nAI 보상 선택: "+Chooser.Name+(learnedRewards!=null?" (학습 "+learnedRewards.data.episodes+"회)":" (학습 정책 파일 없음)"));
-                GUI.enabled=learnedRewards!=null;
-                if(GUI.Button(new Rect(825,545,350,50),"보상 판단: "+(Chooser==RuleRewardChooser.Instance?"규칙 기반":"학습 정책"))) useLearnedRewards=!useLearnedRewards;
-                GUI.enabled=true;
-                if(trainer!=null && trainer.active) {
-                    GUI.Label(new Rect(65,530,1150,60),"Training "+trainer.completed+" / "+trainer.target+"   Last survival: "+trainer.lastSurvival.ToString("F1")+"s");
-                    if(GUI.Button(new Rect(65,610,350,60),"STOP & SAVE")) { trainer.Stop(); agent.Save(PolicyPath); }
-                }
+                GUI.Label(new Rect(65,430,1150,110),"두루마리 19종\n파란 경험치를 모아 레벨업 → 3개 중 선택 → 7·14레벨에 속성 부여");
                 GUI.Label(new Rect(65,700,1150,70),status);
                 return;
             }
-            GUI.Label(new Rect(35,55,1190,45),$"{(ai?"AI":"MANUAL")} | {sim.Spell.name} | HP {sim.hp:F1}/{sim.maxHp:F0}  Shield {sim.shield:F1} | LV {sim.level}  XP {sim.xp:F1}/{balance.RequiredXp(sim.level):F1} | {sim.time:F1}s{(sim.WaveNumber>0?$" · Wave {sim.WaveNumber}/{balance.waves.Length}":"")} | Kills {sim.kills}");
+            GUI.Label(new Rect(35,55,1190,45),$"{sim.Spell.name} | HP {sim.hp:F1}/{sim.maxHp:F0}  Shield {sim.shield:F1} | LV {sim.level}  XP {sim.xp:F1}/{balance.RequiredXp(sim.level):F1} | {sim.time:F1}s{(sim.WaveNumber>0?$" · Wave {sim.WaveNumber}/{balance.waves.Length}":"")} | Kills {sim.kills}");
             GUI.Box(new Rect(20,112,1240,24),"");
             var oldColor=GUI.color; GUI.color=new Color(0.3f,0.6f,1);
             GUI.DrawTexture(new Rect(22,114,1236*Mathf.Clamp01(sim.xp/balance.RequiredXp(sim.level)),20),Texture2D.whiteTexture); GUI.color=oldColor;
@@ -289,23 +261,20 @@ namespace SurvivorLab {
             if(sim.offers.Count==0 && sim.time-sim.lastPickupAt<1.2f) GUI.Label(new Rect(580,440,250,40),sim.lastPickupText);
             bool controlsEnabled=GUI.enabled; GUI.enabled=controlsEnabled && sim.offers.Count==0;
             if(GUI.Button(new Rect(1090,145,175,40),"Speed: "+speed+"x")) speed=speed==1?2:speed==2?4:1;
-            if(GUI.Button(new Rect(1090,190,175,40),ai?"직접 조작":"AI 관전")) SetControl(!ai);
-            if(GUI.Button(new Rect(1090,235,175,40),"보상 자동: "+(autoRewards?"켬":"끔"))) autoRewards=!autoRewards;
-            GUI.enabled=controlsEnabled && sim.offers.Count==0 && learnedRewards!=null;
-            if(GUI.Button(new Rect(1090,280,175,40),"판단: "+(Chooser==RuleRewardChooser.Instance?"규칙":"학습"))) { useLearnedRewards=!useLearnedRewards; sim.rewardChooser=Chooser; }
+            if(GUI.Button(new Rect(1090,190,175,40),"보상 자동: "+(autoRewards?"켬":"끔"))) autoRewards=!autoRewards;
             GUI.enabled=controlsEnabled;
             GUI.Label(new Rect(20,710,1050,85),"두루마리: "+OwnedScrollNames()+$"\nDamage {sim.Damage:F2} | Attack interval {sim.Interval:F3}s | Move {sim.MoveSpeed:F2} | Armor {sim.Armor:F0}");
-            if(ai && sim.lastAutoChoice!="") GUI.Label(new Rect(20,670,1100,35),"AI 선택: "+sim.lastAutoChoice);
+            if(autoRewards && sim.lastAutoChoice!="") GUI.Label(new Rect(20,670,1100,35),"자동 선택: "+sim.lastAutoChoice);
             if(sim.offers.Count>0) {
                 GUI.color=new Color(0.015f,0.025f,0.04f,0.98f);
                 GUI.DrawTexture(new Rect(0,0,1280,800),Texture2D.whiteTexture); GUI.color=oldColor;
-                GUI.Box(new Rect(70,240,1140,390),sim.rewardTitle+(ai&&autoRewards?" · AI가 자동 선택 중 ("+sim.rewardChooser.Name+")":" · 3개 중 1개 선택 (1 / 2 / 3)")+" · 게임 시간 정지");
+                GUI.Box(new Rect(70,240,1140,390),sim.rewardTitle+(autoRewards?" · 자동 선택 중 ("+sim.rewardChooser.Name+")":" · 3개 중 1개 선택 (1 / 2 / 3)")+" · 게임 시간 정지");
                 for(int i=0;i<sim.offers.Count;i++) if(GUI.Button(new Rect(95+i*365,300,345,280),(i+1)+". "+sim.offers[i].label)) { sim.Choose(i); break; }
             }
             if(paused) GUI.Box(new Rect(440,330,400,100),"PAUSED / Space to resume");
             if(sim.Done) {
                 GUI.Box(new Rect(350,270,580,190),sim.won?"SURVIVED / 생존 성공":"GAME OVER");
-                if(GUI.Button(new Rect(400,350,210,60),"Retry")) Begin(ai);
+                if(GUI.Button(new Rect(400,350,210,60),"Retry")) Begin(autoRewards);
                 if(GUI.Button(new Rect(650,350,210,60),"Menu")) menu=true;
             }
         }
@@ -315,6 +284,5 @@ namespace SurvivorLab {
 #endif
             if(!focus && !menu) paused=true;
         }
-        void OnApplicationQuit() { trainer?.Stop(); if(agent!=null) agent.Save(PolicyPath); }
     }
 }

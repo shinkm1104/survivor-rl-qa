@@ -18,7 +18,7 @@ namespace SurvivorLab {
     public class Reward { public string id, label; public int rarity; public float value; public bool scroll, infusion; }
     public class RewardRequest { public bool scroll,infusion; public int level; }
 
-    // One simulation is shared by manual play, agent play, training and deterministic QA.
+    // One simulation is shared by manual play and deterministic QA.
     public sealed partial class Simulation {
         public readonly Balance b; public readonly int classIndex;
         public readonly List<Enemy> enemies = new List<Enemy>();

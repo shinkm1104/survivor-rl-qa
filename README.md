@@ -1,12 +1,12 @@
 # Survivor Lab
 
-몰려오는 적을 피하면서 5분 동안 살아남는 게임입니다. Unity로 만들었고, 직접 플레이하거나 AI가 플레이하는 걸 지켜볼 수 있습니다.
+몰려오는 적을 피하면서 5분 동안 살아남는 게임입니다. Unity로 만들었습니다.
 
-![AI 플레이 화면](docs/media/gameplay.png)
+![플레이 화면](docs/media/gameplay.png)
 
 ![플레이 미리보기](docs/media/gameplay.gif)
 
-위 화면은 AI가 플레이하는 장면을 2배속으로 녹화한 것입니다. [MP4 영상](docs/media/gameplay.mp4)도 있습니다. GitHub에서 바로 재생되지 않으면 다운로드해서 보세요.
+위 화면은 플레이 장면을 2배속으로 녹화한 것입니다. [MP4 영상](docs/media/gameplay.mp4)도 있습니다. GitHub에서 바로 재생되지 않으면 다운로드해서 보세요.
 
 ## 바로 해보기
 
@@ -23,6 +23,7 @@
 | 1, 2, 3 또는 마우스 클릭 | 레벨업 보상 고르기 |
 | Space | 일시 정지 / 다시 시작 |
 | Esc | 메뉴로 |
+| 화면 오른쪽 `보상 자동` | 레벨업 카드를 규칙에 따라 자동으로 고르기 |
 
 다른 창을 누르면 게임이 멈춥니다. 돌아와서 Space를 누르면 이어서 할 수 있습니다.
 
@@ -44,31 +45,6 @@
 - 30초마다 웨이브가 바뀌면서 적이 많아지고, 빨라지고, 단단해집니다. 박쥐는 빠른 적이고, 유령은 줄지어 맵을 쓸고 지나갑니다. 유령 줄에는 빈틈이 하나 있습니다.
 - 300초를 버티면 승리합니다.
 
-## AI 관전
-
-메뉴에서 마법사를 고르고 **WATCH AI**를 누르면 AI가 대신 플레이합니다. 이동도 보상 선택도 AI가 알아서 하니까 지켜보기만 하면 됩니다.
-
-- 이동은 강화학습(Q-learning)으로 학습한 정책을 씁니다.
-- 보상 카드는 따로 학습한 정책(REINFORCE)으로 고릅니다. 화면 오른쪽 `판단` 버튼을 누르면 미리 정해둔 규칙으로 고르게 바꿀 수 있습니다.
-- `보상 자동`을 끄면 이동은 AI가 하고 카드는 내가 고릅니다.
-- 게임 중에 `직접 조작` 버튼을 누르면 바로 내가 조종할 수 있습니다.
-- 메뉴의 `TRAIN +400 episodes`는 이동 AI를 400판 더 학습시킵니다. 보상 선택 AI는 학습시키지 않습니다.
-
-AI가 항상 이기지는 않습니다. 웨이브 시스템을 넣은 뒤로는 공명술사 말고는 자주 집니다. 이동 AI가 예전 규칙에 맞춰 학습된 것이라서 그렇습니다. 이유는 [밸런스 보고서](docs/reports/balance-report.md)에 정리했습니다.
-
-추가로 학습한 이동 AI는 `%USERPROFILE%\AppData\LocalLow\Independent Lab\Survivor Lab\policy-v2.json`에 저장됩니다. 이 파일을 지우면 처음 들어 있던 AI로 돌아갑니다.
-
-## 밸런스 측정 결과
-
-여러 플레이 방식으로 총 984판을 자동으로 돌려봤습니다. 아래 표는 그중 피하면서 싸우는 단순한 봇과 게임에 들어 있는 AI로 플레이한 판(마법사마다 40판)의 생존율입니다.
-
-| | 공명술사 | 유도술사 | 각인술사 | 충격술사 |
-|---|---:|---:|---:|---:|
-| 피하면서 싸우는 봇 | 60% | 80% | 35% | 25% |
-| 게임 AI | 77.5% | 20% | 5% | 0% |
-
-웨이브 시스템을 넣기 전에는 어떤 마법사든 도망만 다니면 100% 이겼습니다. 지금은 그렇게는 이길 수 없습니다. 자세한 내용, 실패한 판을 그대로 다시 돌려본 기록, 개선 방향은 [보고서](docs/reports/balance-report.md)에 있습니다.
-
 ## 직접 빌드하기
 
 필요한 것은 Unity **6000.0.74f1**과 Windows Build Support 모듈입니다. Unity Hub에서 설치하세요.
@@ -78,12 +54,9 @@ open-unity.cmd      :: Unity 에디터로 프로젝트 열기
 build.cmd --verify  :: 게임 규칙 테스트만 실행
 build.cmd           :: Builds\Windows 에 실행 파일 만들기
 play.cmd            :: 빌드한 게임 실행
-balance.cmd         :: 밸런스 측정 (결과는 docs\reports\data)
 ```
 
 Unity를 다른 경로에 설치했다면 `UNITY_EDITOR` 환경 변수에 `Unity.exe`의 전체 경로를 넣어주세요. 빌드할 때마다 게임 규칙 테스트가 먼저 돌고, 로그는 `Logs/build.log`에 남습니다.
-
-실패한 판을 다시 보고 싶으면 `balance.cmd --replay 클래스 시드`를 실행하세요. 예를 들어 `balance.cmd --replay 3 90210`은 충격술사 AI가 36.4초에 죽는 판을 똑같이 다시 돌리고, 2초마다 체력과 주변 적 수를 출력합니다.
 
 ### 코드 위치
 
@@ -92,10 +65,7 @@ Unity를 다른 경로에 설치했다면 `UNITY_EDITOR` 환경 변수에 `Unity
 | `Assets/Scripts/Simulation.cs` | 전투, 레벨업, 보상 |
 | `Assets/Scripts/ElementEffects.cs` | 속성 효과 |
 | `Assets/Scripts/GameApp.cs` | 입력, 화면, UI |
-| `Assets/Scripts/Learning.cs` | 이동 AI 학습 |
-| `Assets/Scripts/RewardLearning.cs` | 보상 선택 AI |
-| `Assets/Editor/BalanceLab.cs` | 밸런스 측정, 실패 재현 |
+| `Assets/Scripts/RewardAdvisor.cs` | 규칙 기반 보상 자동 선택 |
+| `Assets/Scripts/QualityChecks.cs` | 게임 규칙 테스트 |
 | `Assets/StreamingAssets/balance.json` | 체력, 속도, 피해량 같은 수치 |
 | `ArtSource/` | 픽셀 아트 생성 스크립트 ([ART.md](ART.md)) |
-
-`balance.json`의 수치를 바꾸면 이미 학습된 AI가 예전만큼 잘 못할 수 있습니다. 바꾼 뒤에는 `balance.cmd`로 다시 측정해 보세요.
