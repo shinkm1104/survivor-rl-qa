@@ -54,7 +54,7 @@
   "spells": [
     {
       "id": "pulse",
-      "name": "공명술사 / 원형 파동",
+      "name": "파동술사 / 원형 파동",
       "damage": 4.4,
       "fireRate": 1.79775286,
       "radius": 2.5,
@@ -68,7 +68,7 @@
     },
     {
       "id": "orb",
-      "name": "유도술사 / 추적 마법탄",
+      "name": "마탄술사 / 추적 마법탄",
       "damage": 17.0,
       "fireRate": 1.150305986,
       "radius": 0.3,
@@ -82,7 +82,7 @@
     },
     {
       "id": "trail",
-      "name": "각인술사 / 돌 자취",
+      "name": "바위술사 / 바위 자취",
       "damage": 3.3810001,
       "fireRate": 2,
       "radius": 0.65,
@@ -96,7 +96,7 @@
     },
     {
       "id": "slam",
-      "name": "충격술사 / 전방 충격파",
+      "name": "박수술사 / 전방 박수",
       "damage": 18.0,
       "fireRate": 0.35,
       "radius": 0,

@@ -12,7 +12,7 @@ namespace SurvivorLab {
     }
     public sealed class GameApp : MonoBehaviour {
         Balance balance; Simulation sim;
-        bool menu=true, paused, autoRewards; int selected, speed=1; float accumulator;
+        bool menu=true, paused, autoRewards; int selected=1, speed=1; float accumulator;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         bool smoke;
         float smokeStart, smokeCaptureAt=4, smokeQuitAt=6; int smokePhase;
@@ -264,7 +264,6 @@ namespace SurvivorLab {
             if(sim.offers.Count==0 && sim.time-sim.lastPickupAt<1.2f) GUI.Label(new Rect(580,440,250,40),sim.lastPickupText);
             bool controlsEnabled=GUI.enabled; GUI.enabled=controlsEnabled && sim.offers.Count==0;
             if(GUI.Button(new Rect(1090,145,175,40),"Speed: "+speed+"x")) speed=speed==1?2:speed==2?4:1;
-            if(GUI.Button(new Rect(1090,190,175,40),"보상 자동: "+(autoRewards?"켬":"끔"))) autoRewards=!autoRewards;
             GUI.enabled=controlsEnabled;
             GUI.Label(new Rect(20,710,1050,85),"두루마리: "+OwnedScrollNames()+$"\nDamage {sim.Damage:F2} | Attack interval {sim.Interval:F3}s | Move {sim.MoveSpeed:F2} | Armor {sim.Armor:F0}");
             if(autoRewards && sim.lastAutoChoice!="") GUI.Label(new Rect(20,670,1100,35),"자동 선택: "+sim.lastAutoChoice);

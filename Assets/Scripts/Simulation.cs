@@ -319,7 +319,7 @@ namespace SurvivorLab {
                     var r = Upgrade("radius", "파동 반지름", b.pulseSizePercent);
                     if (r.rarity > 0) pool.Add(r);
                 }
-                if (classIndex == 2) pool.Add(Upgrade("life", "돌 지속 시간", b.upgradePercent));
+                if (classIndex == 2) pool.Add(Upgrade("life", "바위 지속 시간", b.upgradePercent));
                 pool.Add(Upgrade("hp", "최대 체력", b.commonHp));
                 pool.Add(Upgrade("speed", "이동 속도", b.commonSpeed));
             }
