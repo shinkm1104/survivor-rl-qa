@@ -48,6 +48,7 @@ namespace SurvivorLab {
         readonly System.Random random;
         public SpellDefinition Spell { get { return b.spells[classIndex]; } }
         public bool Done { get { return dead || won; } }
+        public int MaxScrolls { get { return b.maxScrolls > 0 ? Mathf.Min(b.maxScrolls, b.scrolls.Length) : b.scrolls.Length; } }
         public Simulation(Balance config, int cls, int seed) {
             b = config; classIndex = cls; random = new System.Random(seed);
             hp = maxHp = b.playerHp; spawnAt = b.spawnInterval; scrollAt = b.scrollPeriod;
@@ -211,7 +212,7 @@ namespace SurvivorLab {
                 shieldAt += Param("shield", "periodSeconds");
                 if (shield <= 0) shield = maxHp * Param("shield", "maxHpPercent") / 100;
             }
-            if (time >= scrollAt) { scrollAt += b.scrollPeriod; if (owned.Count < b.scrolls.Length) rewards.Enqueue(new RewardRequest{scroll=true,level=level}); }
+            if (time >= scrollAt) { scrollAt += b.scrollPeriod; if (owned.Count < MaxScrolls) rewards.Enqueue(new RewardRequest{scroll=true,level=level}); }
             EnsureOffer();
             won = time >= b.duration;
         }

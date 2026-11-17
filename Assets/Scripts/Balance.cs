@@ -37,7 +37,7 @@ namespace SurvivorLab {
         public float playerHp, playerSpeed, enemyHp, enemySpeed, contactDamage, contactCooldown;
         public float spawnInterval, enemyXp, pickupRadius, potionHealPercent, scrollPeriod, duration;
         public float baseDodge, baseCrit, baseCritMultiplier, stationaryThreshold, movementFloor;
-        public int maxEnemies, offerCount;
+        public int maxEnemies, offerCount, maxScrolls;
         public float[] upgradePercent, pulseSizePercent, commonHp, commonSpeed, rarityWeights;
         public SpellDefinition[] spells;
         public ScrollDefinition[] scrolls;

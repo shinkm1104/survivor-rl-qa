@@ -26,7 +26,9 @@ namespace SurvivorLab {
         readonly HashSet<string> used=new HashSet<string>(); Font font; string status="";
         readonly Dictionary<string,Texture2D> art=new Dictionary<string,Texture2D>();
         static readonly string[] MonsterKinds={"slime","bat","ghost"};
-        bool faceLeft; BackgroundMap map;
+        bool faceLeft, recorded; BackgroundMap map;
+        static string BestKey(int cls) { return "best_time_" + cls; }
+        float Best(int cls) { return PlayerPrefs.GetFloat(BestKey(cls), 0); }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot() { if(FindFirstObjectByType<GameApp>()==null) new GameObject("Survivor Lab").AddComponent<GameApp>(); }
         void Start() {
@@ -78,7 +80,7 @@ namespace SurvivorLab {
 #endif
         }
         // autoPick: rewards are chosen by the rule-based RewardAdvisor (used by smoke tests and the in-game toggle).
-        void Begin(bool autoPick) { autoRewards=autoPick; rewardChoiceAt=-1; sim=new Simulation(balance,selected,90210); menu=false; paused=false; accumulator=0; }
+        void Begin(bool autoPick) { autoRewards=autoPick; rewardChoiceAt=-1; sim=new Simulation(balance,selected,90210); recorded=false; menu=false; paused=false; accumulator=0; }
         void LoadArt() {
             string root=Path.Combine(Application.streamingAssetsPath,"Art");
             var files=new List<string>{"background/arena","items/xp","items/potion","items/rock","items/bolt","items/shadow"};
@@ -118,6 +120,7 @@ namespace SurvivorLab {
 #endif
             if(Input.GetKeyDown(KeyCode.Escape)) menu=true;
             if(Input.GetKeyDown(KeyCode.Space)) paused=!paused;
+            if(sim!=null && sim.Done && !recorded) { recorded=true; if(sim.time>Best(sim.classIndex)) { PlayerPrefs.SetFloat(BestKey(sim.classIndex),sim.time); PlayerPrefs.Save(); } }
             if(menu || sim==null || paused || sim.Done) return;
             if(sim.offers.Count>0) {
                 if(autoRewards) {
@@ -245,11 +248,11 @@ namespace SurvivorLab {
             GUI.matrix=Matrix4x4.Scale(new Vector3(Screen.width/1280f,Screen.height/800f,1));
             GUI.Box(new Rect(15,15,1250,95),"SURVIVOR LAB / UNITY     |     WASD / arrows: move     Space: pause     Esc: menu");
             if(menu) {
-                GUI.Label(new Rect(65,145,1150,50),"One character, one spell. Survive 5 minutes. Select a class:");
+                GUI.Label(new Rect(65,145,1150,50),"One character, one spell. Survive as long as you can (max 30 min). Select a class:");
                 for(int i=0;i<4;i++) { GUI.backgroundColor=selected==i?new Color(0.2f,0.9f,0.8f):Color.white; if(GUI.Button(new Rect(65+i*295,210,280,90),balance.spells[i].name)) selected=i; }
                 GUI.backgroundColor=Color.white;
                 if(GUI.Button(new Rect(65,335,350,65),"PLAY / 직접 플레이")) Begin(false);
-                GUI.Label(new Rect(65,430,1150,110),"두루마리 19종\n파란 경험치를 모아 레벨업 → 3개 중 선택 → 7·14레벨에 속성 부여");
+                GUI.Label(new Rect(65,430,1150,110),"최고 기록 ("+balance.spells[selected].name+"): "+Best(selected).ToString("F1")+"초 / 최대 "+(balance.duration/60).ToString("F0")+"분\n파란 경험치를 모아 레벨업 → 3개 중 선택 → 7·14레벨에 속성 부여 · 두루마리 최대 "+balance.maxScrolls+"개");
                 GUI.Label(new Rect(65,700,1150,70),status);
                 return;
             }
@@ -273,7 +276,7 @@ namespace SurvivorLab {
             }
             if(paused) GUI.Box(new Rect(440,330,400,100),"PAUSED / Space to resume");
             if(sim.Done) {
-                GUI.Box(new Rect(350,270,580,190),sim.won?"SURVIVED / 생존 성공":"GAME OVER");
+                GUI.Box(new Rect(350,270,580,190),(sim.won?"최대 시간 생존 / 생존 성공":"GAME OVER")+"\n생존 "+sim.time.ToString("F1")+"초 · 최고 "+Best(sim.classIndex).ToString("F1")+"초");
                 if(GUI.Button(new Rect(400,350,210,60),"Retry")) Begin(autoRewards);
                 if(GUI.Button(new Rect(650,350,210,60),"Menu")) menu=true;
             }

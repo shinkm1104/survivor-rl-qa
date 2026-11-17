@@ -105,6 +105,9 @@ namespace SurvivorLab {
             s.offers.Add(new Reward{id="humble_refinement",scroll=true}); s.offers.Add(new Reward{id="regeneration",scroll=true}); s.offers.Add(new Reward{id="vital_strike",scroll=true});
             s.Step(Vector2.zero,0.05f,true);
             Check(s.owned.Contains("regeneration") && s.offers.Count==0,"simulation auto-selects scroll without user input");
+            s=new Simulation(b,0,504); s.hp=s.maxHp=1e9f;
+            for(int i=0;i<4000;i++) s.Step(Vector2.zero,0.05f,true);
+            Check(s.owned.Count==s.MaxScrolls && s.MaxScrolls==2,"scroll rewards stop at the configured maximum");
             s=new Simulation(b,0,503); required=0; for(int l=1;l<14;l++) required+=b.RequiredXp(l);
             s.GainXp(required+0.01f); int guard=0;
             while((s.offers.Count>0 || s.rewards.Count>0) && guard++<30) s.Step(Vector2.zero,0.05f,true);
