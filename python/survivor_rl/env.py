@@ -19,7 +19,7 @@ NUM_ACTIONS = 9  # 0 stop, 1 up, 2 up-right, 3 right, 4 down-right, 5 down, 6 do
 DECISION_SECONDS = 0.1
 ALIVE_REWARD = 0.01
 DEATH_REWARD = -1.0
-CLASS_NAMES = ["마탄술사", "파동술사", "바위술사", "박수술사"]
+CLASS_NAMES = ["파동술사", "마탄술사", "바위술사", "박수술사"]  # Simulation classIndex order (balance.json spells)
 
 _RECORD = np.dtype([("obs", "<f4", OBS_SIZE), ("time", "<f4"), ("kills", "<f4"), ("damage", "<f4"),
                     ("hp", "<f4"), ("level", "<f4"), ("dead", "u1")])
