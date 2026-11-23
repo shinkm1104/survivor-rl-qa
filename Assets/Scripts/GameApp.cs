@@ -33,6 +33,14 @@ namespace SurvivorLab {
         static void Boot() { if(FindFirstObjectByType<GameApp>()==null) new GameObject("Survivor Lab").AddComponent<GameApp>(); }
         void Start() {
             Application.targetFrameRate=60; balance=Balance.Load();
+            // Headless RL environment: SurvivorLab.exe -batchmode -nographics --rl-server --port=N
+            foreach(var arg in Environment.GetCommandLineArgs()) if(arg=="--rl-server") {
+                int port=0;
+                foreach(var a in Environment.GetCommandLineArgs()) if(a.StartsWith("--port=")) port=int.Parse(a.Substring(7));
+                int code=0;
+                try { RlServer.Run(balance,port); } catch(Exception e) { Debug.LogException(e); code=1; }
+                Application.Quit(code); return;
+            }
             LoadArt();
             cam=Camera.main;
             if(cam==null) cam=new GameObject("Camera").AddComponent<Camera>();

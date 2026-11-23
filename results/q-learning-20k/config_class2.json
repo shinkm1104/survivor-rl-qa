@@ -1,0 +1,13 @@
+{
+  "cls": 2,
+  "episodes": 20000,
+  "envs": 16,
+  "alpha": 0.1,
+  "gamma": 0.99,
+  "eps_start": 1.0,
+  "eps_end": 0.05,
+  "eps_fraction": 0.5,
+  "chunk": 500,
+  "seed": 0,
+  "out": "../results/q-learning-20k"
+}
